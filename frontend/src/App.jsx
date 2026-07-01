@@ -7,6 +7,7 @@ export default function App() {
   // Initialize our state variables
   const [appStatus, setAppStatus] = useState('SELECTING');
   const [selectedAnimal, setSelectedAnimal] = useState(null);
+  const [finalAudio, setFinalAudio] = useState(null);
 
   // Helper functions to change the state
   const handleAnimalSelect = (animal) => {
@@ -17,6 +18,29 @@ export default function App() {
   const handleReset = () => {
     setSelectedAnimal(null);
     setAppStatus('SELECTING');
+  };
+
+  const handleSubmit = async (audioBlob) => {
+    setFinalAudio(audioBlob);
+    setAppStatus('PROCESSING');
+
+    try {
+      const formData = new FormData();
+
+      formData.append('file', audioBlob, 'recording.webm');
+      formData.append('animal', selectedAnimal);
+
+      const response = await fetch('http://localhost:8000/api/scoring', {
+        method: 'POST',
+        body: formData,
+      });
+
+
+    } catch (error) {
+      console.error("Failed to score audio:", error);
+      alert("Error connecting to the AI Engine. Is the backend running?");
+      setAppStatus('RECORDING'); // Kick them back so they can try again
+    }
   };
 
   return (
@@ -32,7 +56,14 @@ export default function App() {
         )}
 
         {appStatus === 'RECORDING' && (
-          <Recorder animal={selectedAnimal} onReset={handleReset} />
+          <Recorder animal={selectedAnimal} onReset={handleReset} onSubmit={handleSubmit} />
+        )}
+
+        {appStatus === 'PROCESSING' && (
+          <div style={{ padding: '40px', border: '1px solid #ccc', borderRadius: '8px', width: '350px' }}>
+            <h2>Sending to AI Engine...</h2>
+            <p>Analyzing your inner {selectedAnimal} 🐾</p>
+          </div>
         )}
 
         <ResultsDashboard onReset={handleReset} />
