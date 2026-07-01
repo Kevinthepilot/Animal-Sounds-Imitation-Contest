@@ -9,6 +9,8 @@ export default function App() {
   const [selectedAnimal, setSelectedAnimal] = useState(null);
   const [finalAudio, setFinalAudio] = useState(null);
 
+  const [scoreData, setScoreData] = useState({ score: 0, leaderboard: [] });
+
   // Helper functions to change the state
   const handleAnimalSelect = (animal) => {
     setSelectedAnimal(animal);
@@ -35,6 +37,9 @@ export default function App() {
         body: formData,
       });
 
+      const data = await response.json();
+      setScoreData(data);
+      setAppStatus('SELECTING');
 
     } catch (error) {
       console.error("Failed to score audio:", error);
@@ -66,7 +71,7 @@ export default function App() {
           </div>
         )}
 
-        <ResultsDashboard onReset={handleReset} />
+        <ResultsDashboard scoreData={scoreData} onReset={handleReset} />
 
       </div>
     </div>
