@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import os
 import random
+from model import model, predict_audio, device
 
 app = FastAPI()
 
@@ -33,7 +34,8 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             score_cat INTEGER DEFAULT 0,
             score_dog INTEGER DEFAULT 0,
-            score_pig INTEGER DEFAULT 0,
+            score_bird INTEGER DEFAULT 0,
+            score_cow INTEGER DEFAULT 0,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -47,7 +49,7 @@ def fetch_leaderboard():
     cursor = conn.cursor()
     
     query = f'''
-        SELECT username, score_cat, score_dog, score_pig, (score_cat + score_dog + score_pig) AS total_score
+        SELECT username, score_cat, score_dog, score_bird, score_cow, (score_cat + score_dog + score_bird + score_cow) AS total_score
         FROM scores 
         WHERE total_score > 0 
         ORDER BY total_score DESC 
@@ -59,14 +61,15 @@ def fetch_leaderboard():
 
     leaderboard_data = []
     for row in top_scores:
-        username, s_cat, s_dog, s_pig, total = row
+        username, s_cat, s_dog, s_bird, s_cow, total = row
         leaderboard_data.append({
             "username": username,
             "total_score": total,
             "scores": {
                 "cat": s_cat,
                 "dog": s_dog,
-                "pig": s_pig
+                "bird": s_bird,
+                "cow": s_cow
             },
         })
         
@@ -89,15 +92,21 @@ async def score_audio(
     audio_bytes = await file.read()
     print(f"Received {len(audio_bytes)} bytes of audio data for target: {animal}")
 
-    # 2. AI Engine Placeholder
-    # The audio data is now ready to be processed. 
-    # Eventually, we will route this through a PyTorch pipeline—perhaps passing it 
-    # to an audio Transformer architecture or generating a spectrogram to run 
-    # through a pre-trained ResNet-18 model.
+    audio_filename = f"audio.webm"
     
-    # 3. Dummy Score & Leaderboard for now
-    mock_score = random.randint(50, 99)
-    target_column = f"score_{animal.lower()}"
+    with open(audio_filename, "wb") as f:
+        f.write(audio_bytes)
+    print(f"Saved audio to: {audio_filename}")
+
+    # 3. Run the model to process
+    predicted_label, confidences = predict_audio(audio_filename, model)
+    print(f"Prediction: {predicted_label}, Confidences: {confidences}")
+
+    # Calculate actual score
+    target_animal_lower = animal.lower()
+    score = int(confidences[target_animal_lower])
+        
+    target_column = f"score_{target_animal_lower}"
     current_user = username
 
     conn = sqlite3.connect(DB_FILE)
@@ -110,13 +119,13 @@ async def score_audio(
         {target_column} = MAX({target_column}, excluded.{target_column})
     '''
     
-    cursor.execute(upsert_sql, (current_user, mock_score))
+    cursor.execute(upsert_sql, (current_user, score))
     conn.commit()
     conn.close()
 
     leaderboard_data = fetch_leaderboard()
 
     return {
-        "score": mock_score,
+        "score": score,
         "leaderboard": leaderboard_data
     }
