@@ -1,6 +1,6 @@
 // Notice we pass { onSelect } into the function arguments
 export default function AnimalSelector({ onSelect }) {
-    const animals = ['Cat', 'Dog', 'Pig'];
+    const animals = ['Cat', 'Dog', 'Bird', "Cow"];
 
     return (
         <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', width: '350px' }}>

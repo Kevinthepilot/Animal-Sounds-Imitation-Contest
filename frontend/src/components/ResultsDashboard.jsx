@@ -45,7 +45,8 @@ export default function ResultsDashboard({ scoreData, onReset }) {
                         }}>
                             <span>🐱 {entry.scores.cat}</span>
                             <span>🐶 {entry.scores.dog}</span>
-                            <span>🐷 {entry.scores.pig}</span>
+                            <span>🕊️ {entry.scores.bird}</span>
+                            <span>🐮 {entry.scores.cow}</span>
                         </div>
                     </li>
                 ))}
