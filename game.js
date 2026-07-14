@@ -53,7 +53,7 @@ scene("lose", () => {
 });
 
 scene("main", () => {
-    const levelMap = [
+    const levelMap1 = [
         "================",
         "=     =        =",
         "= === = ====== =",
@@ -66,6 +66,34 @@ scene("main", () => {
         "=             e=",
         "================",
     ];
+    const levelMap2 = [
+        "================",
+        "=              =",
+        "= ============ =",
+        "= =          = =",
+        "= = ======== = =",
+        "= = =      = = =",
+        "= = = ==== = = =",
+        "= =   =    =   =",
+        "= ===== ==== ===",
+        "=             e=",
+        "================",
+    ];
+    const levelMap3 = [
+        "================",
+        "=   =   =      =",
+        "= = = = = ==== =",
+        "= = = = = =  = =",
+        "= =   = = =  = =",
+        "= ===== = == = =",
+        "= =          = =",
+        "= = === ==== = =",
+        "= =   =      = =",
+        "=   =   =     e=",
+        "================",
+    ];
+    const choices = [levelMap1, levelMap2, levelMap3]
+    const levelMap = choices[randi(0, 3)]
 
     const TILE_SIZE = 40;
 
@@ -159,7 +187,7 @@ scene("main", () => {
     }
 
     // --- ENEMY AI LOOP ---
-    loop(1.5, () => {
+    loop(2, () => {
         // Run the pathfinding for every enemy independently
         for (const enemy of enemies) {
             const nextStep = getNextEnemyStep(enemy.gridX, enemy.gridY, playerGridX, playerGridY);
@@ -206,116 +234,112 @@ scene("main", () => {
     onKeyPress("s", () => tryMove(0, 1));
     onKeyPress("a", () => tryMove(-1, 0));
     onKeyPress("d", () => tryMove(1, 0));
-
     const voiceBtn = document.getElementById("voice-btn");
     const voiceStatus = document.getElementById("voice-status");
 
-    const BACKEND_URL = "http://127.0.0.1:8000/api/scoring";
-    let mediaRecorder;
-    let audioChunks = [];
+    let recognizer;
 
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            // Initialize the recorder
-            mediaRecorder = new MediaRecorder(stream);
+    // Load TensorFlow.js Speech Commands Model (Teachable Machine wrapper)
+    async function initModel() {
+        const modelUrl = "https://teachablemachine.withgoogle.com/models/A_Odm4k96/";
+        const checkpointURL = modelUrl + "model.json";
+        const metadataURL = modelUrl + "metadata.json";
 
-            // 2. Collect audio data as it's recorded
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
+        try {
+            if (!modelUrl.includes("YOUR_MODEL_ID")) {
+                recognizer = speechCommands.create(
+                    "BROWSER_FFT",
+                    undefined,
+                    checkpointURL,
+                    metadataURL
+                );
+            } else {
+                // Use default pre-trained Google model (recognizes "up", "down", "left", "right")
+                recognizer = speechCommands.create("BROWSER_FFT");
+            }
+            await recognizer.ensureModelLoaded();
+            voiceStatus.innerText = "AI đã tải xong! Bật mic để điều khiển rảnh tay.";
+        } catch (e) {
+            console.error("Error loading model, falling back to default:", e);
+            recognizer = speechCommands.create("BROWSER_FFT");
+            await recognizer.ensureModelLoaded();
+            voiceStatus.innerText = "Lỗi tải model, sử dụng AI mặc định. Bật mic để điều khiển.";
+        }
+    }
+
+    // Call model initialization on page load
+    initModel();
+
+    let isListening = false;
+
+    async function toggleListening() {
+        try {
+            if (!recognizer) {
+                voiceStatus.innerText = "Đang tải mô hình AI...";
+                await initModel();
+            }
+
+            if (isListening) {
+                // Stop listening
+                if (recognizer.isListening()) {
+                    recognizer.stopListening();
                 }
-            };
+                isListening = false;
+                voiceBtn.classList.replace("bg-red-600", "bg-emerald-600");
+                voiceBtn.innerText = "🎤 Bật Mic (Rảnh Tay)";
+                voiceStatus.innerText = "Đã tắt Mic.";
+            } else {
+                // Start listening
+                voiceBtn.classList.replace("bg-emerald-600", "bg-red-600");
+                voiceBtn.innerText = "🎙️ Mic: ĐANG BẬT";
+                voiceStatus.innerText = "Đang lắng nghe: cat, dog, duck, cow...";
+                isListening = true;
 
-            // 3. When the user lets go of the button, package and send the audio
-            mediaRecorder.onstop = async () => {
-                voiceBtn.innerText = "⏳ Processing...";
-                voiceStatus.innerText = "Sending to AI backend...";
+                recognizer.listen(result => {
+                    const classLabels = recognizer.wordLabels(); // ["background noise", "unknown", ...]
 
-                // Create a single audio Blob (typically .webm or .ogg in browsers)
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                audioChunks = []; // Clear chunks for the next recording
-
-                // Package it in FormData so the backend receives it like a file upload
-                const formData = new FormData();
-                formData.append("file", audioBlob, "audio.webm");
-                formData.append("animal", "cat"); // Required Form parameter on backend
-
-                try {
-                    // Send to your backend
-                    const response = await fetch(BACKEND_URL, {
-                        method: "POST",
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    let command = (data.direction || data.animal || "").toLowerCase();
-
-                    // Map predicted animal sounds to game directions
-                    const animalToDirection = {
-                        "cat": "up",
-                        "dog": "down",
-                        "bird": "left",
-                        "cow": "right"
-                    };
-                    if (animalToDirection[command]) {
-                        command = animalToDirection[command];
+                    // Get label with highest probability
+                    let maxScore = -1;
+                    let highestLabel = "";
+                    for (let i = 0; i < classLabels.length; i++) {
+                        if (result.scores[i] > maxScore) {
+                            maxScore = result.scores[i];
+                            highestLabel = classLabels[i];
+                        }
                     }
 
-                    voiceStatus.innerText = `AI says: "${command}"`;
+                    // If prediction probability is high, execute movement
+                    if (maxScore > 0.5) {
+                        const command = highestLabel.toLowerCase();
+                        voiceStatus.innerText = `AI nghe: "${command}" (${Math.round(maxScore * 100)}%)`;
 
-                    // Execute the move based on the AI's response
-                    if (command === "up") tryMove(0, -1);
-                    else if (command === "down") tryMove(0, 1);
-                    else if (command === "left") tryMove(-1, 0);
-                    else if (command === "right") tryMove(1, 0);
-
-                } catch (error) {
-                    console.error("Backend error:", error);
-                    voiceStatus.innerText = "Error contacting backend. Check console.";
-                }
-
-                // Reset UI
-                voiceBtn.classList.replace("bg-red-600", "bg-emerald-600");
-                voiceBtn.innerText = "🎤 Hold to Speak";
-            };
-        })
-        .catch(err => {
-            // Handle denied microphone permissions
+                        if (command === "cat") tryMove(0, -1);
+                        else if (command === "dog") tryMove(0, 1);
+                        else if (command === "duck") tryMove(-1, 0);
+                        else if (command === "cow") tryMove(1, 0);
+                    }
+                }, {
+                    includeSpectrogram: false,
+                    probabilityThreshold: 0.5,
+                    overlapFactor: 0.50,
+                    invokeCallbackOnNoiseAndBackground: false
+                });
+            }
+        } catch (err) {
             voiceBtn.disabled = true;
             voiceBtn.classList.replace("bg-emerald-600", "bg-slate-600");
-            voiceBtn.innerText = "❌ Mic Denied";
-            voiceStatus.innerText = "Microphone access is required.";
-            console.error("Mic error:", err);
-        });
-
-
-    const startRecording = () => {
-        if (mediaRecorder && mediaRecorder.state === "inactive") {
-            mediaRecorder.start();
-            voiceBtn.classList.replace("bg-emerald-600", "bg-red-600");
-            voiceBtn.innerText = "🎙️ Recording...";
-            voiceStatus.innerText = "Speak now...";
+            voiceBtn.innerText = "❌ Lỗi Mic";
+            voiceStatus.innerText = "Không thể khởi động Microphone. Cần cấp quyền.";
+            console.error("Microphone or recognition error:", err);
+            isListening = false;
         }
-    };
+    }
 
-    const stopRecording = () => {
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-            mediaRecorder.stop(); // This triggers the onstop event above
-        }
-    };
-
-    // Mouse Events
-    voiceBtn.addEventListener("mousedown", startRecording);
-    voiceBtn.addEventListener("mouseup", stopRecording);
-    voiceBtn.addEventListener("mouseleave", stopRecording); // Safety catch if mouse drags off button
-
-    // Touch Events for mobile
-    voiceBtn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); });
-    voiceBtn.addEventListener("touchend", stopRecording);
+    // Toggle listening on click/touch
+    voiceBtn.addEventListener("click", toggleListening);
 
 });
 
 go("main");
-
 
 

@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maze Chase</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load TensorFlow.js and Speech Commands model libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
     <style>
         /* A little custom CSS to handle the grid layout perfectly */
         .d-pad-grid {
@@ -54,8 +58,8 @@
         <!-- Voice Button -->
         <div class="flex flex-col items-center gap-2">
             <button id="voice-btn"
-                class="bg-emerald-600 hover:bg-emerald-500 active:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-colors select-none">
-                🎤 Hold to Speak
+                class="bg-emerald-600 hover:bg-emerald-500 active:bg-red-500 text-white font-bold py-3 px-8 w-64 rounded-full shadow-lg transition-colors select-none">
+                🎤 Bật Mic
             </button>
             <p id="voice-status" class="text-slate-400 text-xs font-mono h-4"></p>
         </div>
