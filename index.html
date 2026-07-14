@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Chase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* A little custom CSS to handle the grid layout perfectly */
+        .d-pad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+
+        .btn-up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .btn-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .btn-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .btn-down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-white h-screen flex flex-col items-center justify-center font-sans">
+
+    <div class="mb-4 text-center">
+        <h1 class="text-4xl font-extrabold text-emerald-400 tracking-tight">Maze Chase</h1>
+    </div>
+
+    <div class="border-4 border-slate-700 rounded-xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="mt-6 flex flex-col items-center gap-6">
+
+        <!-- Voice Button -->
+        <div class="flex flex-col items-center gap-2">
+            <button id="voice-btn"
+                class="bg-emerald-600 hover:bg-emerald-500 active:bg-red-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-colors select-none">
+                🎤 Hold to Speak
+            </button>
+            <p id="voice-status" class="text-slate-400 text-xs font-mono h-4">Press and say: "Up", "Down", "Left",
+                "Right"</p>
+        </div>
+
+        <!-- Directional D-Pad with Animals -->
+        <div class="d-pad-grid w-full">
+            <button id="btn-up"
+                class="btn-up bg-slate-700 hover:bg-slate-600 active:bg-emerald-500 text-white p-3 rounded-lg flex flex-col items-center justify-center transition-colors shadow">
+                <span class="text-2xl">🐱</span>
+                <span class="text-xs mt-1 font-bold">UP</span>
+            </button>
+
+            <button id="btn-left"
+                class="btn-left bg-slate-700 hover:bg-slate-600 active:bg-emerald-500 text-white p-3 rounded-lg flex flex-col items-center justify-center transition-colors shadow">
+                <span class="text-2xl">🐦</span>
+                <span class="text-xs mt-1 font-bold">LEFT</span>
+            </button>
+
+            <button id="btn-right"
+                class="btn-right bg-slate-700 hover:bg-slate-600 active:bg-emerald-500 text-white p-3 rounded-lg flex flex-col items-center justify-center transition-colors shadow">
+                <span class="text-2xl">🐄</span>
+                <span class="text-xs mt-1 font-bold">RIGHT</span>
+            </button>
+
+            <button id="btn-down"
+                class="btn-down bg-slate-700 hover:bg-slate-600 active:bg-emerald-500 text-white p-3 rounded-lg flex flex-col items-center justify-center transition-colors shadow">
+                <span class="text-2xl">🐶</span>
+                <span class="text-xs mt-1 font-bold">DOWN</span>
+            </button>
+        </div>
+
+    </div>
+
+    <script type="module" src="game.js"></script>
+</body>
+
+</html>
