@@ -8,6 +8,50 @@ kaboom({
     debug: true
 });
 
+// --- NEW: Win Scene ---
+scene("win", () => {
+    // Draw winning text
+    add([
+        text("YOU ESCAPED!", { size: 48 }),
+        pos(width() / 2, height() / 2 - 40),
+        anchor("center"),
+        color(250, 204, 21) // Yellow
+    ]);
+
+    add([
+        text("Press Space to Try Again", { size: 24 }),
+        pos(width() / 2, height() / 2 + 40),
+        anchor("center"),
+        color(255, 255, 255)
+    ]);
+
+    // Restart the main scene if they press Space
+    onKeyPress("space", () => {
+        go("main");
+    });
+
+    // Also allow tapping the canvas (for mobile)
+    onClick(() => {
+        go("main");
+    });
+});
+
+scene("lose", () => {
+    add([
+        text("CAUGHT!", { size: 64 }),
+        pos(width() / 2, height() / 2 - 40),
+        anchor("center"),
+        color(239, 68, 68) // Red
+    ]);
+    add([
+        text("Press Space to Restart", { size: 24 }),
+        pos(width() / 2, height() / 2 + 40),
+        anchor("center")
+    ]);
+    onKeyPress("space", () => go("main"));
+    onClick(() => go("main"));
+});
+
 scene("main", () => {
     const levelMap = [
         "================",
@@ -39,6 +83,7 @@ scene("main", () => {
                 color(255, 0, 0),
                 area(),
                 body(),
+                "goal"
             ]
         }
     };
@@ -57,6 +102,79 @@ scene("main", () => {
         "player"
     ]);
 
+    loadSprite("enemyImage", "assets/enemy.png");
+    const enemySpawnPoints = [
+        { x: 14, y: 9 }, // Bottom right
+        { x: 1, y: 9 },  // Bottom left
+        { x: 14, y: 1 }  // Top right (near the goal)
+    ];
+
+    const enemies = enemySpawnPoints.map(spawn => {
+        return {
+            gridX: spawn.x,
+            gridY: spawn.y,
+            sprite: add([
+                sprite("enemyImage", { width: TILE_SIZE, height: TILE_SIZE }),
+                pos(spawn.x * TILE_SIZE, spawn.y * TILE_SIZE),
+            ])
+        };
+    });
+
+    function checkEntityCollisions() {
+        // Loop through every enemy in the array
+        for (const enemy of enemies) {
+            if (playerGridX === enemy.gridX && playerGridY === enemy.gridY) {
+                go("lose");
+            }
+        }
+    }
+
+    // --- ENEMY PATHFINDING (BFS) ---
+    function getNextEnemyStep(startX, startY, targetX, targetY) {
+        const queue = [{ x: startX, y: startY, path: [] }];
+        const visited = new Set([`${startX},${startY}`]);
+        const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+
+            if (current.x === targetX && current.y === targetY) return current.path[0];
+
+            for (const d of dirs) {
+                const nx = current.x + d.x;
+                const ny = current.y + d.y;
+
+                if (ny >= 0 && ny < levelMap.length && nx >= 0 && nx < levelMap[0].length) {
+                    if (levelMap[ny][nx] !== "=" && !visited.has(`${nx},${ny}`)) {
+                        visited.add(`${nx},${ny}`);
+                        queue.push({
+                            x: nx, y: ny,
+                            path: [...current.path, { x: nx, y: ny }]
+                        });
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // --- ENEMY AI LOOP ---
+    loop(1.5, () => {
+        // Run the pathfinding for every enemy independently
+        for (const enemy of enemies) {
+            const nextStep = getNextEnemyStep(enemy.gridX, enemy.gridY, playerGridX, playerGridY);
+
+            if (nextStep) {
+                enemy.gridX = nextStep.x;
+                enemy.gridY = nextStep.y;
+                enemy.sprite.pos = vec2(enemy.gridX * TILE_SIZE, enemy.gridY * TILE_SIZE);
+            }
+        }
+
+        // Check if any enemy stepped on the player during this tick
+        checkEntityCollisions();
+    });
+
     // 3. The movement logic: Check the array before allowing a jump
     function tryMove(deltaX, deltaY) {
         const nextX = playerGridX + deltaX;
@@ -73,6 +191,12 @@ scene("main", () => {
 
                 // Snap the player's visual position to the new grid coordinates
                 player.pos = vec2(playerGridX * TILE_SIZE, playerGridY * TILE_SIZE);
+            }
+            if (levelMap[nextY][nextX] === "e") {
+                // Give it a tiny delay so the player sees themselves land on the goal
+                wait(0.2, () => {
+                    go("win"); // Switch scenes!
+                });
             }
         }
     }
