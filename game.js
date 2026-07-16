@@ -131,10 +131,12 @@ scene("main", () => {
     ]);
 
     loadSprite("enemyImage", "assets/enemy.png");
+    // const enemySpawnPoints = [
+    //     { x: 14, y: 9 }, // Bottom right
+    //     { x: 1, y: 9 },  // Bottom left 
+    // ];
     const enemySpawnPoints = [
         { x: 14, y: 9 }, // Bottom right
-        { x: 1, y: 9 },  // Bottom left
-        { x: 14, y: 1 }  // Top right (near the goal)
     ];
 
     const enemies = enemySpawnPoints.map(spawn => {
@@ -187,7 +189,7 @@ scene("main", () => {
     }
 
     // --- ENEMY AI LOOP ---
-    loop(2, () => {
+    loop(4, () => {
         // Run the pathfinding for every enemy independently
         for (const enemy of enemies) {
             const nextStep = getNextEnemyStep(enemy.gridX, enemy.gridY, playerGridX, playerGridY);
@@ -204,7 +206,7 @@ scene("main", () => {
     });
 
     // 3. The movement logic: Check the array before allowing a jump
-    function tryMove(deltaX, deltaY) {
+    async function tryMove(deltaX, deltaY) {
         const nextX = playerGridX + deltaX;
         const nextY = playerGridY + deltaY;
 
@@ -246,19 +248,14 @@ scene("main", () => {
         const metadataURL = modelUrl + "metadata.json";
 
         try {
-            if (!modelUrl.includes("YOUR_MODEL_ID")) {
-                recognizer = speechCommands.create(
-                    "BROWSER_FFT",
-                    undefined,
-                    checkpointURL,
-                    metadataURL
-                );
-            } else {
-                // Use default pre-trained Google model (recognizes "up", "down", "left", "right")
-                recognizer = speechCommands.create("BROWSER_FFT");
-            }
+            recognizer = speechCommands.create(
+                "BROWSER_FFT", // fourier transform type, not useful to change
+                undefined, // speech commands vocabulary feature, not useful for your models
+                checkpointURL,
+                metadataURL);
+
             await recognizer.ensureModelLoaded();
-            voiceStatus.innerText = "AI đã tải xong! Bật mic để điều khiển rảnh tay.";
+            voiceStatus.innerText = "AI đã tải xong!";
         } catch (e) {
             console.error("Error loading model, falling back to default:", e);
             recognizer = speechCommands.create("BROWSER_FFT");
@@ -309,19 +306,19 @@ scene("main", () => {
                     }
 
                     // If prediction probability is high, execute movement
-                    if (maxScore > 0.5) {
-                        const command = highestLabel.toLowerCase();
-                        voiceStatus.innerText = `AI nghe: "${command}" (${Math.round(maxScore * 100)}%)`;
 
-                        if (command === "cat") tryMove(0, -1);
-                        else if (command === "dog") tryMove(0, 1);
-                        else if (command === "duck") tryMove(-1, 0);
-                        else if (command === "cow") tryMove(1, 0);
-                    }
+                    const command = highestLabel.toLowerCase();
+                    voiceStatus.innerText = `AI nghe: "${command}" (${Math.round(maxScore * 100)}%)`;
+
+                    if (command === "cat") tryMove(0, -1);
+                    else if (command === "dog") tryMove(0, 1);
+                    else if (command === "duck") tryMove(-1, 0);
+                    else if (command === "cow") tryMove(1, 0);
+
                 }, {
                     includeSpectrogram: false,
                     probabilityThreshold: 0.5,
-                    overlapFactor: 0.50,
+                    overlapFactor: 0.5,
                     invokeCallbackOnNoiseAndBackground: false
                 });
             }
@@ -336,6 +333,7 @@ scene("main", () => {
     }
 
     // Toggle listening on click/touch
+    toggleListening()
     voiceBtn.addEventListener("click", toggleListening);
 
 });
