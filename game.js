@@ -232,14 +232,15 @@ scene("main", () => {
     }
 
     // 4. Use onKeyPress instead of onKeyDown for discrete jumps
-    onKeyPress("w", () => tryMove(0, -1));
-    onKeyPress("s", () => tryMove(0, 1));
-    onKeyPress("a", () => tryMove(-1, 0));
-    onKeyPress("d", () => tryMove(1, 0));
+    // onKeyPress("w", () => tryMove(0, -1));
+    // onKeyPress("s", () => tryMove(0, 1));
+    // onKeyPress("a", () => tryMove(-1, 0));
+    // onKeyPress("d", () => tryMove(1, 0));
     const voiceBtn = document.getElementById("voice-btn");
     const voiceStatus = document.getElementById("voice-status");
 
     let recognizer;
+    let lastMoveTime = Date.now();
 
     // Load TensorFlow.js Speech Commands Model (Teachable Machine wrapper)
     async function initModel() {
@@ -292,7 +293,18 @@ scene("main", () => {
                 voiceStatus.innerText = "Đang lắng nghe: cat, dog, duck, cow...";
                 isListening = true;
 
+
                 recognizer.listen(result => {
+                    const now = Date.now();
+                    if (now - lastMoveTime > 5000) {
+                        const plrNextStep = getNextEnemyStep(playerGridX, playerGridY, 14, 9)
+                        if (plrNextStep) {
+                            tryMove(plrNextStep.x - playerGridX, plrNextStep.y - playerGridY);
+                            checkEntityCollisions()
+                            lastMoveTime = now;
+                        }
+                    }
+
                     const classLabels = recognizer.wordLabels(); // ["background noise", "unknown", ...]
 
                     // Get label with highest probability
@@ -310,10 +322,13 @@ scene("main", () => {
                     const command = highestLabel.toLowerCase();
                     voiceStatus.innerText = `AI nghe: "${command}" (${Math.round(maxScore * 100)}%)`;
 
-                    if (command === "cat") tryMove(0, -1);
-                    else if (command === "dog") tryMove(0, 1);
-                    else if (command === "duck") tryMove(-1, 0);
-                    else if (command === "cow") tryMove(1, 0);
+                    if (["cat", "dog", "duck", "cow"].includes(command)) {
+                        if (command === "cat") tryMove(0, -1);
+                        else if (command === "dog") tryMove(0, 1);
+                        else if (command === "duck") tryMove(-1, 0);
+                        else if (command === "cow") tryMove(1, 0);
+                        lastMoveTime = Date.now()
+                    }
 
                 }, {
                     includeSpectrogram: false,
